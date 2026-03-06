@@ -155,22 +155,54 @@ ${participants.map(id => `    {"memberId": "${id}", "response": "..."}`).join(',
 }`;
 }
 
-// DEBATE MODE: selected members argue with each other
+// DEBATE MODE: selected members argue with each other (supports duplicates like Jinx vs Jinx)
 export function buildDebatePrompt(
   question: string,
   participants: CouncilMemberId[],
   previousTurns: ConversationTurn[] = [],
   isContinuation = false
 ): string {
-  const names = participants.map(id => COUNCIL_MEMBERS[id].name).join(' vs ');
+  // Detect duplicates and label them
+  const countMap: Record<string, number> = {};
+  const labeledNames: string[] = [];
+  const debaterDescriptions: string[] = [];
 
-  return `You are running a HEATED DEBATE between council members: ${names}. ${isContinuation ? 'Continue the debate — each member should respond to what others just said, escalate their arguments, find new angles, and get more passionate.' : 'They are debating the following topic and MUST take opposing stances.'}
+  for (const id of participants) {
+    countMap[id] = (countMap[id] || 0) + 1;
+  }
+
+  const hasDuplicates = Object.values(countMap).some(c => c > 1);
+  const instanceCount: Record<string, number> = {};
+
+  for (const id of participants) {
+    const m = COUNCIL_MEMBERS[id];
+    instanceCount[id] = (instanceCount[id] || 0) + 1;
+    const num = instanceCount[id];
+    const isDup = countMap[id] > 1;
+    const label = isDup ? `${m.name} #${num}` : m.name;
+    labeledNames.push(label);
+
+    if (isDup) {
+      const angle = num === 1 ? 'Take the PRO/YES side of this debate.' : num === 2 ? 'Take the AGAINST/NO side of this debate.' : `Find a completely unique, unexpected third angle no one else is taking.`;
+      debaterDescriptions.push(`- ${label} (${m.title}, id="${id}"): ${m.personality}\n  STANCE: ${angle}`);
+    } else {
+      debaterDescriptions.push(`- ${label} (${m.title}, id="${id}"): ${m.personality}`);
+    }
+  }
+
+  const nameStr = labeledNames.join(' vs ');
+  const dupNote = hasDuplicates
+    ? `\nNOTE: Some members appear multiple times! Each copy is the SAME personality but arguing from a DIFFERENT angle. They should genuinely disagree with their other self — this is an internal conflict externalized. Make it entertaining! Have them call each other out ("My other self is being ridiculous...").`
+    : '';
+
+  return `You are running a HEATED DEBATE between council members: ${nameStr}. ${isContinuation ? 'Continue the debate — each member should respond to what others just said, escalate their arguments, find new angles, and get more passionate.' : 'They are debating the following topic and MUST take opposing stances.'}
 
 THE DEBATERS:
-${memberList(participants)}
+${debaterDescriptions.join('\n')}
+${dupNote}
 
 RULES:
-- Each member argues their position in 2-3 sentences MAX
+- Each debater argues their position in 2-3 sentences MAX
 - They MUST directly reference and counter each other's points
 - ${isContinuation ? 'ESCALATE — get more specific, more passionate, more creative with arguments. Concede small points if it strengthens your main argument.' : 'Take strong, distinct positions — find genuine disagreement'}
 - Be entertaining but substantive — wit AND wisdom

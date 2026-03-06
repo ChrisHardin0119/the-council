@@ -11,6 +11,16 @@ import HistoryPanel from '@/components/HistoryPanel';
 import ModeSwitcher from '@/components/ModeSwitcher';
 import MemberSelector from '@/components/MemberSelector';
 
+// Fisher-Yates shuffle
+function shuffleArray<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 const MODE_EMOJI: Record<CouncilMode, string> = {
   council: '⚔️',
   roundtable: '💬',
@@ -85,6 +95,9 @@ export default function Home() {
     const isFollowUp = !!currentSession;
     const previousTurns = currentSession?.turns || [];
 
+    // Randomize response order each time (except DM which is just 1)
+    const shuffledParticipants = mode === 'dm' ? participants : shuffleArray(participants);
+
     try {
       const res = await fetch('/api/council', {
         method: 'POST',
@@ -92,7 +105,7 @@ export default function Home() {
         body: JSON.stringify({
           question,
           mode,
-          participants,
+          participants: shuffledParticipants,
           previousTurns,
           isSwayAttempt: opts?.isSwayAttempt || false,
           isContinuation: opts?.isContinuation || false,
@@ -311,7 +324,7 @@ export default function Home() {
                   if (!isRevealed && !isLoading) return null;
 
                   return (
-                    <div key={`${resp.memberId}-${turnIdx}`} className="transition-all duration-500" style={{
+                    <div key={`${resp.memberId}-${turnIdx}-${respIdx}`} className="transition-all duration-500" style={{
                       opacity: isRevealed ? 1 : 0.5,
                       transform: isRevealed ? 'translateY(0)' : 'translateY(8px)',
                     }}>
