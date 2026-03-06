@@ -1,31 +1,43 @@
 // Council member identities
 export type CouncilMemberId = 'optimist' | 'realist' | 'chaos' | 'philosopher' | 'strategist';
 
+// Modes: council (vote+ruling), roundtable (discussion), debate (pick members to argue), dm (1-on-1)
+export type CouncilMode = 'council' | 'roundtable' | 'debate' | 'dm';
+
 export interface CouncilMember {
   id: CouncilMemberId;
   name: string;
   title: string;
   emoji: string;
-  color: string;        // primary accent color
-  bgColor: string;      // card background tint
-  borderColor: string;  // card border
-  glowColor: string;    // glow effect
+  color: string;
+  bgColor: string;
+  borderColor: string;
+  glowColor: string;
   description: string;
-  personality: string;   // system prompt personality description
+  personality: string;
 }
 
 export interface CouncilResponse {
   memberId: CouncilMemberId;
   response: string;
-  vote?: 'for' | 'against' | 'abstain';
+  vote?: 'for' | 'against';  // only in council mode
+}
+
+export interface ConversationTurn {
+  role: 'user' | 'council';
+  question?: string;
+  responses?: CouncilResponse[];
+  ruling?: string;
+  timestamp: string;
 }
 
 export interface CouncilSession {
   id: string;
-  question: string;
-  responses: CouncilResponse[];
+  mode: CouncilMode;
+  question: string;               // initial question
+  turns: ConversationTurn[];      // full conversation history
+  participants: CouncilMemberId[]; // who's involved
   timestamp: string;
-  ruling?: string;  // AI-generated summary of the council's ruling
 }
 
 export interface CouncilHistory {

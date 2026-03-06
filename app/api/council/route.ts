@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
-import { buildCouncilPrompt } from '@/lib/council';
+import { buildCouncilPrompt, buildRoundtablePrompt, buildDebatePrompt, buildDMPrompt } from '@/lib/council';
+import { CouncilMode, CouncilMemberId, ConversationTurn } from '@/lib/types';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || '',
@@ -8,7 +9,22 @@ const anthropic = new Anthropic({
 
 export async function POST(request: Request) {
   try {
-    const { question } = await request.json();
+    const body = await request.json();
+    const {
+      question,
+      mode = 'council',
+      participants = ['optimist', 'realist', 'chaos', 'philosopher', 'strategist'],
+      previousTurns = [],
+      isSwayAttempt = false,
+      isContinuation = false,
+    } = body as {
+      question: string;
+      mode: CouncilMode;
+      participants: CouncilMemberId[];
+      previousTurns: ConversationTurn[];
+      isSwayAttempt: boolean;
+      isContinuation: boolean;
+    };
 
     if (!question || typeof question !== 'string' || question.trim().length === 0) {
       return NextResponse.json({ error: 'Question is required' }, { status: 400 });
@@ -22,29 +38,40 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
     }
 
-    const prompt = buildCouncilPrompt(question.trim());
+    // Build prompt based on mode
+    let prompt: string;
+    switch (mode) {
+      case 'council':
+        prompt = buildCouncilPrompt(question.trim(), participants, previousTurns, isSwayAttempt);
+        break;
+      case 'roundtable':
+        prompt = buildRoundtablePrompt(question.trim(), participants, previousTurns);
+        break;
+      case 'debate':
+        prompt = buildDebatePrompt(question.trim(), participants, previousTurns, isContinuation);
+        break;
+      case 'dm':
+        prompt = buildDMPrompt(question.trim(), participants[0], previousTurns);
+        break;
+      default:
+        prompt = buildCouncilPrompt(question.trim(), participants, previousTurns);
+    }
 
     const message = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1024,
+      max_tokens: 1500,
       messages: [
-        {
-          role: 'user',
-          content: prompt,
-        },
+        { role: 'user', content: prompt },
       ],
     });
 
-    // Extract text from response
     const textBlock = message.content.find(block => block.type === 'text');
     if (!textBlock || textBlock.type !== 'text') {
       return NextResponse.json({ error: 'No response from AI' }, { status: 500 });
     }
 
-    // Parse the JSON response
     let parsed;
     try {
-      // Clean up potential markdown formatting
       let jsonStr = textBlock.text.trim();
       if (jsonStr.startsWith('```')) {
         jsonStr = jsonStr.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');

@@ -5,9 +5,11 @@ import { useState, useRef, useEffect } from 'react';
 interface Props {
   onSubmit: (question: string) => void;
   isLoading: boolean;
+  placeholder?: string;
+  statusText?: string;
 }
 
-export default function QuestionInput({ onSubmit, isLoading }: Props) {
+export default function QuestionInput({ onSubmit, isLoading, placeholder = 'Ask The Council anything...', statusText }: Props) {
   const [question, setQuestion] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -45,7 +47,7 @@ export default function QuestionInput({ onSubmit, isLoading }: Props) {
           value={question}
           onChange={(e) => setQuestion(e.target.value.slice(0, 500))}
           onKeyDown={handleKeyDown}
-          placeholder="Ask The Council anything..."
+          placeholder={placeholder}
           disabled={isLoading}
           rows={1}
           className="w-full bg-transparent text-gray-100 placeholder-gray-500 px-5 py-4 pr-14 resize-none focus:outline-none text-sm"
@@ -67,7 +69,7 @@ export default function QuestionInput({ onSubmit, isLoading }: Props) {
       </div>
       <div className="flex justify-between items-center mt-2 px-1">
         <span className="text-xs text-gray-600">
-          {isLoading ? '✨ The Council is deliberating...' : 'Press Enter to convene The Council'}
+          {statusText || (isLoading ? '✨ The Council is deliberating...' : 'Press Enter to convene The Council')}
         </span>
         <span className="text-xs text-gray-600">{question.length}/500</span>
       </div>

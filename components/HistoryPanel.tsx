@@ -1,6 +1,13 @@
 'use client';
 
-import { CouncilSession } from '@/lib/types';
+import { CouncilSession, CouncilMode } from '@/lib/types';
+
+const MODE_BADGE: Record<CouncilMode, { emoji: string; label: string; color: string }> = {
+  council: { emoji: '⚔️', label: 'Council', color: '#A78BFA' },
+  roundtable: { emoji: '💬', label: 'Roundtable', color: '#60A5FA' },
+  debate: { emoji: '🔥', label: 'Debate', color: '#F472B6' },
+  dm: { emoji: '🎯', label: '1-on-1', color: '#34D399' },
+};
 
 interface Props {
   sessions: CouncilSession[];
@@ -39,7 +46,7 @@ export default function HistoryPanel({ sessions, onSelect, onClear, onClose }: P
           backgroundColor: '#0f0f14',
           borderBottom: '1px solid rgba(255,255,255,0.06)',
         }}>
-          <h2 className="text-sm font-bold text-gray-200">Past Councils</h2>
+          <h2 className="text-sm font-bold text-gray-200">Past Sessions</h2>
           <div className="flex gap-2">
             {sessions.length > 0 && (
               <button onClick={onClear} className="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded-lg hover:bg-red-400/10 transition-colors">
@@ -59,21 +66,34 @@ export default function HistoryPanel({ sessions, onSelect, onClear, onClose }: P
           </div>
         ) : (
           <div className="p-2">
-            {sessions.map((session) => (
-              <button
-                key={session.id}
-                onClick={() => { onSelect(session); onClose(); }}
-                className="w-full text-left p-3 rounded-xl mb-1 transition-all duration-200 hover:bg-white/5"
-                style={{ border: '1px solid transparent' }}
-              >
-                <p className="text-sm text-gray-200 line-clamp-2 mb-1">{session.question}</p>
-                <div className="flex items-center gap-2">
+            {sessions.map((session) => {
+              const badge = MODE_BADGE[session.mode] || MODE_BADGE.council;
+              const turnCount = session.turns?.filter(t => t.role === 'user').length || 0;
+
+              return (
+                <button
+                  key={session.id}
+                  onClick={() => { onSelect(session); onClose(); }}
+                  className="w-full text-left p-3 rounded-xl mb-1 transition-all duration-200 hover:bg-white/5"
+                  style={{ border: '1px solid transparent' }}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs px-2 py-0.5 rounded-full" style={{
+                      backgroundColor: `${badge.color}15`,
+                      border: `1px solid ${badge.color}30`,
+                      color: badge.color,
+                    }}>
+                      {badge.emoji} {badge.label}
+                    </span>
+                    {turnCount > 1 && (
+                      <span className="text-xs text-gray-600">{turnCount} turns</span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-200 line-clamp-2 mb-1">{session.question}</p>
                   <span className="text-xs text-gray-600">{formatDate(session.timestamp)}</span>
-                  <span className="text-xs text-gray-700">·</span>
-                  <span className="text-xs text-gray-600">{session.responses.length} responses</span>
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
